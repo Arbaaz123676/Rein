@@ -1,10 +1,4 @@
-/**
- * macOS virtual keyboard implementation.
- *
- * Handles key, key-combination, and text injection through CoreGraphics
- * keyboard events. Supports both key-code based input and Unicode
- * character injection for characters not present in the standard key map.
- */
+import koffi from "koffi"
 import {
 	postKeyEvent,
 	postMediaKeyEvent,
@@ -39,7 +33,7 @@ export class MacKeyboard {
 		if (code !== undefined) {
 			if (pos !== "RELEASE") postKeyEvent(code, true)
 			if (pos !== "HOLD") postKeyEvent(code, false)
-		} else if (key.length === 1) {
+		} else if (key.length > 0) {
 			this.injectText(key)
 		} else {
 			console.warn("[MacKeyboard] Unknown key:", key)
@@ -72,20 +66,13 @@ export class MacKeyboard {
 		if (!text) return
 		for (const ch of text) {
 			const { code, shifted } = resolveChar(ch, MAC_KEY_MAP)
-			const shiftCode = MAC_KEY_MAP.shift
-			if (code === undefined) {
-				// Fall back to Unicode injection for unmapped characters.
+			if (code === undefined || shifted) {
+				// Fall back to Unicode injection for unmapped or shifted characters.
 				this.injectUnicodeChar(ch)
 				continue
 			}
-			if (shiftCode === undefined) {
-				console.warn("[MacKeyboard] Shift key code not defined in key map")
-				continue
-			}
-			if (shifted) postKeyEvent(shiftCode, true)
 			postKeyEvent(code, true)
 			postKeyEvent(code, false)
-			if (shifted) postKeyEvent(shiftCode, false)
 		}
 	}
 	private injectUnicodeChar(ch: string): void {
@@ -108,7 +95,6 @@ function ensureUnicode() {
 	if (_unicodeInjectorLoaded) return
 	_unicodeInjectorLoaded = true
 	try {
-		const koffi = require("koffi")
 		const lib = koffi.load(
 			"/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
 		)
@@ -148,7 +134,6 @@ function injectUnicode(ch: string): void {
 
 	const upRef = _CGEventCreateKeyboardEvent(null, 0, 0)
 	if (!upRef) return
-	_CGEventKeyboardSetUnicodeString(upRef, charCount, buf)
 	_CGEventPost(0, upRef)
 	_CFRelease(upRef)
 }

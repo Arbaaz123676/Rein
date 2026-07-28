@@ -773,35 +773,46 @@ function writeHostClipboard(text: string): void {
 		}
 	}
 }
+// 100 MiB — far beyond any realistic clipboard content; prevents spawnSync
+// from silently truncating stdout when the default 1 MiB maxBuffer is exceeded.
+const CLIPBOARD_MAX_BUFFER = 100 * 1024 * 1024
 function readHostClipboard(): string {
 	const platform = os.platform()
 	if (platform === "darwin") {
-		const proc = spawnSync("pbpaste", { encoding: "utf-8" })
+		const proc = spawnSync("pbpaste", {
+			encoding: "utf-8",
+			maxBuffer: CLIPBOARD_MAX_BUFFER,
+		})
+		if (proc.error) throw proc.error
 		return proc.stdout || ""
 	} else if (platform === "win32") {
 		const proc = spawnSync(
 			"powershell",
 			["-NoProfile", "-Command", "Get-Clipboard"],
-			{ encoding: "utf-8" },
+			{ encoding: "utf-8", maxBuffer: CLIPBOARD_MAX_BUFFER },
 		)
+		if (proc.error) throw proc.error
 		return (proc.stdout || "").replace(/\r\n$/, "").replace(/\n$/, "")
 	} else {
 		const procWl = spawnSync("wl-paste", ["--no-newline"], {
 			encoding: "utf-8",
+			maxBuffer: CLIPBOARD_MAX_BUFFER,
 		})
-		if (procWl.status === 0) {
+		if (procWl.status === 0 && !procWl.error) {
 			return procWl.stdout || ""
 		}
 		const procXclip = spawnSync("xclip", ["-selection", "clipboard", "-o"], {
 			encoding: "utf-8",
+			maxBuffer: CLIPBOARD_MAX_BUFFER,
 		})
-		if (procXclip.status === 0) {
+		if (procXclip.status === 0 && !procXclip.error) {
 			return procXclip.stdout || ""
 		}
 		const procXsel = spawnSync("xsel", ["--clipboard", "--output"], {
 			encoding: "utf-8",
+			maxBuffer: CLIPBOARD_MAX_BUFFER,
 		})
-		if (procXsel.status === 0) {
+		if (procXsel.status === 0 && !procXsel.error) {
 			return procXsel.stdout || ""
 		}
 	}
