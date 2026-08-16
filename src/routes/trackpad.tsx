@@ -82,8 +82,8 @@ function TrackpadPage() {
 		videoStream,
 		error,
 		errorHandle,
+		connecting,
 		reconnect,
-		activeSessionId,
 	} = useWebRtcStream({
 		token,
 	})
@@ -329,6 +329,7 @@ function TrackpadPage() {
 						handlers={handlers}
 						videoStream={videoStream}
 						trackActive={trackActive}
+						connecting={connecting}
 						status={status}
 					/>
 				)}

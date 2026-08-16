@@ -19,6 +19,12 @@ try {
 	)
 }
 
+import { loadServerConfig } from "./configHelper.ts"
+
+// Read verboseLogs flag from server-config.json (defaults to false if missing/unreadable)
+const serverConfig = loadServerConfig()
+const verboseLogs = serverConfig.verboseLogs === true
+
 // Ensure the logger handles uncaught exceptions and rejections
 const logger = winston.createLogger({
 	level: "info",
@@ -39,8 +45,8 @@ const logger = winston.createLogger({
 	rejectionHandlers: [new winston.transports.File({ filename: LOG_FILE })],
 })
 
-// If we're not in production then log to the `console`
-if (process.env.NODE_ENV !== "production") {
+// Only print to terminal when verboseLogs is explicitly enabled in server-config.json
+if (verboseLogs) {
 	logger.add(
 		new winston.transports.Console({
 			format: winston.format.combine(
@@ -52,11 +58,16 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 // Optional: Intercept standard console.log and redirect to winston
-const _originalConsoleLog = console.log
-const _originalConsoleError = console.error
 
-const serialize = (a: unknown): string =>
-	typeof a === "string" ? a : JSON.stringify(a)
+const serialize = (a: unknown): string => {
+	if (typeof a === "string") return a
+	if (a instanceof Error) return a.stack || a.message
+	try {
+		return JSON.stringify(a)
+	} catch {
+		return String(a)
+	}
+}
 
 console.log = (...args: unknown[]) => {
 	logger.info(args.map(serialize).join(" "))
