@@ -33,7 +33,7 @@ export class LinuxKeyboard {
 				this.sendKeyEvent(code, KEY_RELEASE)
 			}
 			this.sync()
-		} else if (key.length === 1) {
+		} else if (key.length > 0) {
 			this.injectText(key)
 		} else {
 			console.warn("[LinuxKeyboard] Unknown key:", key)

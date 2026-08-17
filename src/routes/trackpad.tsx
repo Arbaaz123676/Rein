@@ -11,6 +11,44 @@ import { ScreenMirror } from "../components/Trackpad/ScreenMirror"
 import { ErrorComponent } from "../components/Trackpad/ErrorComponent"
 import { useWebRtcStream } from "../hooks/useWebRtcStream"
 
+const copyWithFallback = (text: string) => {
+	const textArea = document.createElement("textarea")
+	textArea.value = text
+	textArea.setAttribute("readonly", "")
+	textArea.style.position = "fixed"
+	textArea.style.left = "-9999px"
+	textArea.style.top = "0"
+	document.body.appendChild(textArea)
+	textArea.focus()
+	textArea.select()
+	textArea.setSelectionRange(0, text.length)
+	try {
+		return document.execCommand("copy")
+	} catch {
+		return false
+	} finally {
+		document.body.removeChild(textArea)
+	}
+}
+const writeClientClipboard = async (text: string) => {
+	if (
+		typeof navigator !== "undefined" &&
+		navigator.clipboard &&
+		typeof navigator.clipboard.writeText === "function"
+	) {
+		try {
+			await navigator.clipboard.writeText(text)
+			return
+		} catch (err) {
+			console.warn("navigator.clipboard.writeText failed, using fallback:", err)
+		}
+	}
+	const success = copyWithFallback(text)
+	if (!success) {
+		throw new Error("Fallback copy failed")
+	}
+}
+
 export const Route = createFileRoute("/trackpad")({
 	component: TrackpadPage,
 })
@@ -50,6 +88,7 @@ function TrackpadPage() {
 		errorHandle,
 		connecting,
 		reconnect,
+		activeSessionId,
 	} = useWebRtcStream({
 		token,
 	})
@@ -81,8 +120,73 @@ function TrackpadPage() {
 		)
 	}
 
-	const handleCopy = () => broadcastMessage({ type: "copy" })
-	const handlePaste = async () => broadcastMessage({ type: "paste" })
+	const handleCopy = async () => {
+		try {
+			const headers: Record<string, string> = {}
+			if (token) {
+				headers.Authorization = `Bearer ${token}`
+			}
+			const response = await fetch("/api/clipboard/copy", {
+				method: "POST",
+				headers: {
+					...headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ sessionId: activeSessionId }),
+			})
+			if (response.ok) {
+				const data = await response.json()
+				if (data && typeof data.text === "string") {
+					await writeClientClipboard(data.text)
+				} else {
+					throw new Error("Invalid copy response data")
+				}
+			} else {
+				throw new Error(`Clipboard copy failed: ${response.statusText}`)
+			}
+		} catch (err) {
+			console.warn(
+				"Client clipboard copy failed, falling back to server copy:",
+				err,
+			)
+			broadcastMessage({ type: "copy" })
+		}
+	}
+	const handlePaste = async () => {
+		try {
+			if (
+				typeof navigator !== "undefined" &&
+				navigator.clipboard &&
+				typeof navigator.clipboard.readText === "function"
+			) {
+				const text = await navigator.clipboard.readText()
+				if (text) {
+					const headers: Record<string, string> = {}
+					if (token) {
+						headers.Authorization = `Bearer ${token}`
+					}
+					const response = await fetch("/api/clipboard/paste", {
+						method: "POST",
+						headers: {
+							...headers,
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({ sessionId: activeSessionId, text }),
+					})
+					if (response.ok) {
+						return
+					}
+				}
+			}
+			throw new Error("Client clipboard read returned empty or is unavailable")
+		} catch (err) {
+			console.warn(
+				"Client clipboard paste failed, falling back to server clipboard:",
+				err,
+			)
+			broadcastMessage({ type: "paste" })
+		}
+	}
 
 	const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const nativeEvent = e.nativeEvent as InputEvent
@@ -114,6 +218,24 @@ function TrackpadPage() {
 		if (textToSend) {
 			if (modifier !== "Release") {
 				handleModifier(textToSend)
+			} else if (textToSend.length > 50) {
+				const headers: Record<string, string> = {}
+				if (token) {
+					headers.Authorization = `Bearer ${token}`
+				}
+				fetch("/api/clipboard/paste", {
+					method: "POST",
+					headers: {
+						...headers,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						sessionId: activeSessionId,
+						text: textToSend,
+					}),
+				}).catch(() => {
+					broadcastMessage({ type: "text", text: textToSend })
+				})
 			} else {
 				if (textToSend === " ") {
 					broadcastMessage({ type: "key", key: "space" })
@@ -139,6 +261,24 @@ function TrackpadPage() {
 		if (textToSend) {
 			if (modifier !== "Release") {
 				handleModifier(textToSend)
+			} else if (textToSend.length > 50) {
+				const headers: Record<string, string> = {}
+				if (token) {
+					headers.Authorization = `Bearer ${token}`
+				}
+				fetch("/api/clipboard/paste", {
+					method: "POST",
+					headers: {
+						...headers,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						sessionId: activeSessionId,
+						text: textToSend,
+					}),
+				}).catch(() => {
+					broadcastMessage({ type: "text", text: textToSend })
+				})
 			} else {
 				broadcastMessage({ type: "text", text: textToSend })
 			}

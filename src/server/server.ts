@@ -5,6 +5,8 @@ import winston from "winston"
 import { getOrCreateActiveToken, isKnownToken } from "./tokenStore.ts"
 import { GstManager } from "./gstreamer/gstManager.ts"
 import { WebRTCManager } from "./webRTC.ts"
+import { getSystemClipboard, setSystemClipboard } from "./clipboard.ts"
+import { MAX_TEXT_LENGTH } from "./constants.ts"
 import type { InputConfig } from "./types.ts"
 import { getLanIp, isLoopbackAddress } from "../utils/net.ts"
 
@@ -235,6 +237,74 @@ export function attachSignalingRoutes(server: any): void {
 							webrtcManager.updateConfig(config)
 						}
 						json(res, 200, { ok: true })
+					})
+					.catch((err) => {
+						json(res, 400, { ok: false, error: String(err) })
+					})
+				return
+			}
+
+			if (pathname === "/api/clipboard/copy" && req.method === "POST") {
+				if (!requireAuth(req, res)) return
+				parseJsonBody<{ sessionId?: string }>(req)
+					.catch(() => ({}) as { sessionId?: string })
+					.then(async (body) => {
+						try {
+							const handler = webrtcManager?.getInputHandler(body.sessionId)
+							if (!handler) {
+								json(res, 400, { error: "Active session required" })
+								return
+							}
+
+							const before = await getSystemClipboard()
+							await handler.handleMessage({ type: "copy" })
+
+							let current = before
+							const startTime = Date.now()
+							const maxWaitMs = 120
+							const pollIntervalMs = 15
+							while (Date.now() - startTime < maxWaitMs) {
+								await new Promise((resolve) =>
+									setTimeout(resolve, pollIntervalMs),
+								)
+								current = await getSystemClipboard()
+								if (current !== before) break
+							}
+
+							json(res, 200, { text: current })
+						} catch (err) {
+							logger.error(`Error in /api/clipboard/copy: ${String(err)}`)
+							json(res, 500, { error: "Failed to copy clipboard" })
+						}
+					})
+				return
+			}
+
+			if (pathname === "/api/clipboard/paste" && req.method === "POST") {
+				if (!requireAuth(req, res)) return
+				parseJsonBody<{ sessionId?: string; text?: string }>(req)
+					.then(async (body) => {
+						try {
+							const handler = webrtcManager?.getInputHandler(body.sessionId)
+							if (!handler) {
+								json(res, 400, { error: "Active session required" })
+								return
+							}
+
+							if (typeof body.text === "string" && body.text.length > 0) {
+								const textToSet =
+									body.text.length > MAX_TEXT_LENGTH
+										? body.text.slice(0, MAX_TEXT_LENGTH)
+										: body.text
+								await setSystemClipboard(textToSet)
+							}
+
+							await handler.handleMessage({ type: "paste" })
+							json(res, 200, { ok: true })
+						} catch (err) {
+							logger.error(`Error in /api/clipboard/paste: ${String(err)}`)
+							json(res, 500, { error: "Failed to paste clipboard" })
+						}
 					})
 					.catch((err) => {
 						json(res, 400, { ok: false, error: String(err) })

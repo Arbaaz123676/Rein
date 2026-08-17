@@ -337,7 +337,7 @@ export class WebRTCManager {
 				const offer = await pc.createOffer()
 				await pc.setLocalDescription(offer)
 				if (ws.readyState === WebSocket.OPEN) {
-					ws.send(JSON.stringify({ type: "offer", sdp: offer }))
+					ws.send(JSON.stringify({ type: "offer", sdp: offer, sessionId }))
 				}
 			} catch (err) {
 				logger.error(`Failed to create offer: ${String(err)}`)
@@ -380,6 +380,13 @@ export class WebRTCManager {
 			})
 		}
 		return snapshots
+	}
+
+	public getInputHandler(sessionId?: string): InputHandler | null {
+		if (sessionId && this.clients.has(sessionId)) {
+			return this.clients.get(sessionId)?.inputHandler ?? null
+		}
+		return null
 	}
 
 	public updateConfig(config: Partial<InputConfig>) {
