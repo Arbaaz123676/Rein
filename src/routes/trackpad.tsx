@@ -15,13 +15,17 @@ const copyWithFallback = (text: string) => {
 	const textArea = document.createElement("textarea")
 	textArea.value = text
 	textArea.setAttribute("readonly", "")
-	textArea.style.position = "absolute"
+	textArea.style.position = "fixed"
 	textArea.style.left = "-9999px"
+	textArea.style.top = "0"
 	document.body.appendChild(textArea)
+	textArea.focus()
 	textArea.select()
 	textArea.setSelectionRange(0, text.length)
 	try {
 		return document.execCommand("copy")
+	} catch {
+		return false
 	} finally {
 		document.body.removeChild(textArea)
 	}
@@ -84,6 +88,7 @@ function TrackpadPage() {
 		errorHandle,
 		connecting,
 		reconnect,
+		activeSessionId,
 	} = useWebRtcStream({
 		token,
 	})
@@ -213,6 +218,24 @@ function TrackpadPage() {
 		if (textToSend) {
 			if (modifier !== "Release") {
 				handleModifier(textToSend)
+			} else if (textToSend.length > 50) {
+				const headers: Record<string, string> = {}
+				if (token) {
+					headers.Authorization = `Bearer ${token}`
+				}
+				fetch("/api/clipboard/paste", {
+					method: "POST",
+					headers: {
+						...headers,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						sessionId: activeSessionId,
+						text: textToSend,
+					}),
+				}).catch(() => {
+					broadcastMessage({ type: "text", text: textToSend })
+				})
 			} else {
 				if (textToSend === " ") {
 					broadcastMessage({ type: "key", key: "space" })
@@ -238,6 +261,24 @@ function TrackpadPage() {
 		if (textToSend) {
 			if (modifier !== "Release") {
 				handleModifier(textToSend)
+			} else if (textToSend.length > 50) {
+				const headers: Record<string, string> = {}
+				if (token) {
+					headers.Authorization = `Bearer ${token}`
+				}
+				fetch("/api/clipboard/paste", {
+					method: "POST",
+					headers: {
+						...headers,
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						sessionId: activeSessionId,
+						text: textToSend,
+					}),
+				}).catch(() => {
+					broadcastMessage({ type: "text", text: textToSend })
+				})
 			} else {
 				broadcastMessage({ type: "text", text: textToSend })
 			}

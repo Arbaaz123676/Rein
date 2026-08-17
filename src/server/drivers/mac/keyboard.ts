@@ -18,6 +18,17 @@ const MEDIA_KEY_MAP: Record<string, number> = {
 	audiostop: NX_KEYTYPE_PLAY,
 }
 
+const MODIFIER_FLAGS: Record<string, number> = {
+	meta: 0x00100000,
+	command: 0x00100000,
+	cmd: 0x00100000,
+	shift: 0x00020000,
+	control: 0x00040000,
+	ctrl: 0x00040000,
+	alt: 0x00080000,
+	option: 0x00080000,
+}
+
 export class MacKeyboard {
 	injectKey(key: string, pos: string): void {
 		const lowerKey = key.toLowerCase()
@@ -42,8 +53,14 @@ export class MacKeyboard {
 
 	injectCombo(keys: string[]): void {
 		const codes: number[] = []
+		let flags = 0
 		for (const k of keys) {
-			const code = MAC_KEY_MAP[k.toLowerCase()]
+			const lower = k.toLowerCase()
+			const modFlag = MODIFIER_FLAGS[lower]
+			if (modFlag !== undefined) {
+				flags |= modFlag
+			}
+			const code = MAC_KEY_MAP[lower]
 			if (code !== undefined) {
 				codes.push(code)
 			} else {
@@ -52,13 +69,13 @@ export class MacKeyboard {
 		}
 		if (codes.length === 0) return
 
-		// Press all keys down
+		// Press all keys down with modifier flags
 		for (const code of codes) {
-			postKeyEvent(code, true)
+			postKeyEvent(code, true, flags)
 		}
 		// Release in reverse order
 		for (let i = codes.length - 1; i >= 0; i--) {
-			postKeyEvent(codes[i], false)
+			postKeyEvent(codes[i], false, flags)
 		}
 	}
 

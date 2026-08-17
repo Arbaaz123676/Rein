@@ -14,6 +14,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 	const [error, setError] = useState<string | null>(null)
 	const [errorHandle, setErrorHandle] = useState<string | null>(null)
 	const [connecting, setConnecting] = useState(false)
+	const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
 	const [reconnectAttempt, setReconnectAttempt] = useState(0)
 	const { registerDataChannel, send: sendInputEvent } = useConnection()
 	const pcRef = useRef<RTCPeerConnection | null>(null)
@@ -121,6 +122,7 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 		setConnecting(true)
 		setTrackActive(false)
 		setVideoStream(null)
+		setActiveSessionId(null)
 		retryCountRef.current = 0
 		setReconnectAttempt((prev) => prev + 1)
 	}, [])
@@ -202,12 +204,16 @@ export function useWebRtcStream({ token }: UseWebRtcStreamOptions) {
 			try {
 				const msg = JSON.parse(event.data) as {
 					type: string
+					sessionId?: string
 					sdp?: RTCSessionDescriptionInit
 					candidate?: RTCIceCandidateInit
 					errorType?: string
 					message?: string
 				}
 				if (msg.type === "offer" && msg.sdp) {
+					if (msg.sessionId) {
+						setActiveSessionId(msg.sessionId)
+					}
 					await pc.setRemoteDescription(msg.sdp)
 					const answer = await pc.createAnswer()
 					await pc.setLocalDescription(answer)
