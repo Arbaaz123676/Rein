@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Lock, Maximize, Minimize } from "lucide-react"
 
 import { t } from "../../utils/i18n"
 
@@ -13,6 +14,10 @@ interface ScreenMirrorProps {
 	trackActive: boolean
 	connecting: boolean
 	status: "connecting" | "connected" | "disconnected"
+	mouseContainerRef?: React.RefObject<HTMLDivElement | null>
+	onMouseClick?: (e: React.MouseEvent) => void
+	isPointerLocked?: boolean
+	showLockHint?: boolean
 }
 
 const TEXTS = {
@@ -29,8 +34,14 @@ export const ScreenMirror = ({
 	trackActive,
 	connecting,
 	status,
+	mouseContainerRef,
+	onMouseClick,
+	isPointerLocked,
+	showLockHint,
 }: ScreenMirrorProps) => {
 	const videoElementRef = useRef<HTMLVideoElement | null>(null)
+	const [isFullscreen, setIsFullscreen] = useState(false)
+
 	useEffect(() => {
 		const video = videoElementRef.current
 		if (!video) return
@@ -80,6 +91,54 @@ export const ScreenMirror = ({
 		}
 	}
 
+	const handleFullscreenToggle = (e: React.MouseEvent) => {
+		e.stopPropagation()
+		const container =
+			mouseContainerRef?.current || videoElementRef.current?.parentElement
+		if (!container) return
+
+		if (!document.fullscreenElement) {
+			if (container.requestFullscreen) {
+				container.requestFullscreen().catch((err) => {
+					console.warn("[ScreenMirror] Fullscreen request failed:", err)
+				})
+			} else if (
+				(
+					container as unknown as {
+						webkitRequestFullscreen?: () => Promise<void>
+					}
+				).webkitRequestFullscreen
+			) {
+				;(
+					container as unknown as {
+						webkitRequestFullscreen: () => Promise<void>
+					}
+				).webkitRequestFullscreen()
+			}
+		} else {
+			if (document.exitFullscreen) {
+				document.exitFullscreen().catch((err) => {
+					console.warn("[ScreenMirror] Exit fullscreen failed:", err)
+				})
+			}
+		}
+	}
+
+	useEffect(() => {
+		const handleFullscreenChange = () => {
+			setIsFullscreen(!!document.fullscreenElement)
+		}
+		document.addEventListener("fullscreenchange", handleFullscreenChange)
+		document.addEventListener("webkitfullscreenchange", handleFullscreenChange)
+		return () => {
+			document.removeEventListener("fullscreenchange", handleFullscreenChange)
+			document.removeEventListener(
+				"webkitfullscreenchange",
+				handleFullscreenChange,
+			)
+		}
+	}, [])
+
 	const getWaitingText = () => {
 		if (connecting) return t("screenMirror", "establishingConnection")
 		switch (status) {
@@ -105,9 +164,13 @@ export const ScreenMirror = ({
 	}
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: layout container handles pointer lock clicks
+		// biome-ignore lint/a11y/useKeyWithClickEvents: pointer lock keyboard navigation is handled dynamically
 		<div
+			ref={mouseContainerRef}
 			onPointerDown={handleInteraction}
 			onTouchStart={handleInteraction}
+			onClick={onMouseClick}
 			className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden select-none touch-none"
 		>
 			{/* Hardware Accelerated Video/Audio Renderer */}
@@ -134,12 +197,41 @@ export const ScreenMirror = ({
 				</div>
 			)}
 
+			{/* Mouse Lock Notification Popup */}
+			{isPointerLocked && showLockHint && (
+				<div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-base-100/90 backdrop-blur-md px-4 py-2 rounded-full border border-base-300 shadow-xl text-xs md:text-sm text-base-content pointer-events-none transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+					<Lock size={14} className="text-primary shrink-0" />
+					<span>{t("screenMirror", "mouseLockedHint")}</span>
+					<kbd className="kbd kbd-xs bg-base-200 border-base-300 font-mono">
+						Esc
+					</kbd>
+					<span>{t("screenMirror", "toUnlock")}</span>
+				</div>
+			)}
+
+			{/* Toggleable Fullscreen Button in Lower Right Corner */}
+			<button
+				type="button"
+				onClick={handleFullscreenToggle}
+				onPointerDown={(e) => e.stopPropagation()}
+				onTouchStart={(e) => e.stopPropagation()}
+				className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 bg-base-100/80 hover:bg-base-100 active:scale-95 text-base-content backdrop-blur-md border border-base-300 shadow-xl rounded-full transition-all duration-200"
+				aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+				title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+			>
+				{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+			</button>
+
 			{/* Gesture Event Interaction Overlay */}
 			<div
 				className="absolute inset-0 z-10"
 				{...handlers}
 				style={{
-					cursor: scrollMode ? "ns-resize" : isTracking ? "none" : "default",
+					cursor: scrollMode
+						? "ns-resize"
+						: isTracking || isPointerLocked
+							? "none"
+							: "pointer",
 				}}
 			/>
 		</div>

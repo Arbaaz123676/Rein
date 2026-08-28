@@ -47,6 +47,35 @@ export class GstManager {
 		return ["pulsesrc"]
 	}
 
+	private getX264Params(
+		quality: "performance" | "intermediate" | "quality",
+	): string[] {
+		const presets = {
+			performance: [
+				"tune=zerolatency",
+				"speed-preset=ultrafast",
+				"key-int-max=30",
+				"bitrate=2000",
+				"byte-stream=false",
+			],
+			intermediate: [
+				"tune=zerolatency",
+				"speed-preset=superfast",
+				"key-int-max=30",
+				"bitrate=4000",
+				"byte-stream=false",
+			],
+			quality: [
+				"tune=zerolatency",
+				"speed-preset=veryfast",
+				"key-int-max=30",
+				"bitrate=8000",
+				"byte-stream=false",
+			],
+		} as const
+		return [...presets[quality]]
+	}
+
 	private buildPipelineArgs(sourceBlocks: string[]): string[] {
 		const args = [...sourceBlocks]
 		const cfg = loadServerConfig()
@@ -70,13 +99,13 @@ export class GstManager {
 			args.push("!", "videorate", "!", `video/x-raw,framerate=${framerate}/1`)
 		}
 
+		const quality = cfg.streamQuality ?? "performance"
+		const x264Params = this.getX264Params(quality)
+
 		args.push(
 			"!",
 			"x264enc",
-			"tune=zerolatency",
-			"speed-preset=ultrafast",
-			"key-int-max=30",
-			"byte-stream=false",
+			...x264Params,
 			"!",
 			"h264parse",
 			"!",

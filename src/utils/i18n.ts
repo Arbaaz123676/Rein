@@ -9,6 +9,7 @@ export const i18n = {
 			appVersion: "Rein Remote v{version}",
 			copyFailed:
 				"Could not copy the link automatically. Please copy it manually.",
+			noOnscreenKeyboard: "No on-screen keyboard found",
 		},
 		screenMirror: {
 			ariaLabel: "Remote desktop screen share",
@@ -20,6 +21,8 @@ export const i18n = {
 			checkNetwork: "Attempting to connect to the host.",
 			establishingConnection: "Establishing Connection",
 			negotiatingWebRtc: "Negotiating WebRTC session, please wait\u2026",
+			mouseLockedHint: "Mouse locked. Press",
+			toUnlock: "to unlock.",
 		},
 		errorComponent: {
 			unknownError: "Unknown Error",

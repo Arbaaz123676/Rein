@@ -4,5 +4,11 @@
 @plugin "daisyui" {
   themes:
     dracula --default --prefersdark,
-    cupcake;
+    cupcake --preferlight,
+    night,
+    sunset,
+    forest,
+    nord,
+    lofi,
+    lemonade;
 }

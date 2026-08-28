@@ -15,6 +15,7 @@ export interface ServerConfig {
 	disableBundledGstreamer?: boolean
 	/** framerate: null = dynamic frame rate. */
 	framerate?: number | null
+	streamQuality?: "performance" | "intermediate" | "quality"
 	audioSource?: string
 	version?: string
 }
@@ -82,4 +83,18 @@ export function loadServerConfig(): ServerConfig {
 		cachedConfig = {}
 	}
 	return cachedConfig
+}
+
+/**
+ * Merges partial fields into server-config.json and clears the in-memory cache
+ * so the next loadServerConfig() call reads the updated file.
+ */
+export function saveServerConfig(partial: Partial<ServerConfig>): void {
+	const configPath =
+		getServerConfigPath() ??
+		path.join(process.cwd(), "src", "server-config.json")
+	const existing = loadServerConfig()
+	const merged = { ...existing, ...partial }
+	fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), "utf-8")
+	cachedConfig = null
 }

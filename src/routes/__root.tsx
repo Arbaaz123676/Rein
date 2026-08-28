@@ -17,7 +17,7 @@ import { DebugProvider } from "../contexts/DebugContext"
 import { FileShareProvider, useFileShare } from "../contexts/FileShareContext"
 import { FileShareOverlay } from "../components/FileTransfer/SendFileComponent"
 import { IncomingFileNotifications } from "../components/FileTransfer/IncomingFileNotification"
-import { FolderOpen } from "lucide-react"
+import { FolderOpen, MousePointer2, SlidersHorizontal } from "lucide-react"
 
 export const Route = createRootRoute({
 	shellComponent: AppProviders,
@@ -109,6 +109,20 @@ function LatencyBadge() {
 		</div>
 	)
 }
+const NAV_ITEMS = [
+	{
+		to: "/trackpad",
+		label: "Trackpad",
+		icon: MousePointer2,
+		id: "nav-link-trackpad",
+	},
+	{
+		to: "/settings",
+		label: "Settings",
+		icon: SlidersHorizontal,
+		id: "nav-link-settings",
+	},
+] as const
 
 function Navbar() {
 	return (
@@ -124,24 +138,27 @@ function Navbar() {
 					Rein
 				</Link>
 			</div>
-			<div className="flex-none flex items-center gap-2">
+			<nav className="flex items-center gap-1 bg-base-200/60 p-1 rounded-xl border border-base-300/50">
 				<LatencyBadge />
-				<Link
-					to="/trackpad"
-					className="btn btn-ghost btn-sm"
-					activeProps={{ className: "btn-active bg-base-200" }}
-				>
-					Trackpad
-				</Link>
-				<Link
-					to="/settings"
-					className="btn btn-ghost btn-sm"
-					activeProps={{ className: "btn-active bg-base-200" }}
-				>
-					Settings
-				</Link>
+				{NAV_ITEMS.map((item) => (
+					<Link
+						key={item.to}
+						to={item.to}
+						id={item.id}
+						className="btn btn-ghost btn-xs sm:btn-sm gap-1.5 font-medium rounded-lg text-base-content/70 hover:text-base-content hover:bg-base-200/80 transition-all duration-200"
+						activeProps={{
+							className:
+								"btn-active bg-base-100 text-primary shadow-xs border border-base-300/80 font-semibold",
+						}}
+					>
+						<item.icon className="w-4 h-4 shrink-0" />
+						<span className="hidden md:inline text-xs sm:text-sm">
+							{item.label}
+						</span>
+					</Link>
+				))}
 				<SendFileButton />
-			</div>
+			</nav>
 		</div>
 	)
 }

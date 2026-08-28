@@ -8,6 +8,11 @@ import { WebRTCManager } from "./webRTC.ts"
 import type { InputConfig } from "../types.ts"
 import { getLanIp, isLoopbackAddress } from "../../utils/net.ts"
 import { requireAuth, parseJsonBody, json } from "./utils.ts"
+import {
+	loadServerConfig,
+	saveServerConfig,
+	type ServerConfig,
+} from "../../utils/configHelper.ts"
 
 //routes
 import { handleSessions, handleLatency, handleLogs } from "./handlers/debug.ts"
@@ -174,6 +179,21 @@ export function attachSignalingRoutes(server: any): void {
 				return
 			}
 
+			if (pathname === "/api/host/restart" && req.method === "POST") {
+				if (!requireAuth(req, res)) return
+				restartServer()
+					.then(() =>
+						json(res, 200, { ok: true, status: getEffectiveHostStatus() }),
+					)
+					.catch((err) =>
+						json(res, 500, {
+							ok: false,
+							error: `Failed to restart server: ${String(err)}`,
+						}),
+					)
+				return
+			}
+
 			if (pathname === "/api/host/status" && req.method === "GET") {
 				if (!requireAuth(req, res)) return
 				json(res, 200, { status: getEffectiveHostStatus() })
@@ -227,11 +247,61 @@ export function attachSignalingRoutes(server: any): void {
 
 			// ------------------------------------------------------------------
 			// Config  POST /api/config
+			if (pathname === "/api/config" && req.method === "GET") {
+				if (!requireAuth(req, res)) return
+				const { framerate, streamQuality } = loadServerConfig()
+				json(res, 200, {
+					ok: true,
+					config: {
+						framerate: framerate ?? null,
+						streamQuality: streamQuality ?? "performance",
+					},
+				})
+				return
+			}
+
 			if (pathname === "/api/config" && req.method === "POST") {
 				if (!requireAuth(req, res)) return
-				parseJsonBody<Partial<InputConfig>>(req)
+				parseJsonBody<
+					Partial<InputConfig> & {
+						framerate?: number | null
+						streamQuality?: string
+					}
+				>(req)
 					.then((config) => {
-						webrtcManager?.updateConfig(config)
+						const { framerate, streamQuality, ...inputConfig } = config
+						webrtcManager?.updateConfig(inputConfig)
+						// GStreamer fields are persisted to server-config.json and take effect on restart
+						const gstFields: Partial<ServerConfig> = {}
+						if ("framerate" in config) gstFields.framerate = framerate ?? null
+						if ("streamQuality" in config) {
+							const q = streamQuality
+							if (
+								q === "performance" ||
+								q === "intermediate" ||
+								q === "quality"
+							) {
+								gstFields.streamQuality = q
+							}
+						}
+						const currentCfg = loadServerConfig()
+						const hasGstChange =
+							("framerate" in config &&
+								(framerate ?? null) !== (currentCfg.framerate ?? null)) ||
+							("streamQuality" in config &&
+								streamQuality !== undefined &&
+								streamQuality !== (currentCfg.streamQuality ?? "performance"))
+
+						if (Object.keys(gstFields).length > 0) {
+							saveServerConfig(gstFields)
+							if (hasGstChange) {
+								restartServer().catch((err) => {
+									logger.error(
+										`Failed to restart server after config update: ${err}`,
+									)
+								})
+							}
+						}
 						json(res, 200, { ok: true })
 					})
 					.catch((err) => {
@@ -327,6 +397,52 @@ export function attachSignalingRoutes(server: any): void {
 
 export async function stopServer() {
 	signalingAttached = false
-	webrtcManager?.shutdown()
+	if (webrtcManager) await webrtcManager.shutdown()
 	if (gstManager) await gstManager.stop()
+}
+
+export async function restartServer(): Promise<void> {
+	logger.info("Executing full server engine restart...")
+	hostStatus = "starting"
+
+	if (gstManager) {
+		try {
+			await gstManager.stop()
+		} catch (err) {
+			logger.warn(`Error stopping GStreamer during restart: ${err}`)
+		}
+		gstManager = null
+	}
+
+	if (webrtcManager) {
+		try {
+			await webrtcManager.shutdown()
+		} catch (err) {
+			logger.warn(`Error shutting down WebRTC during restart: ${err}`)
+		}
+		webrtcManager = null
+	}
+
+	// 200ms pause ensures OS releases bound UDP sockets (5004/5005) completely
+	await new Promise((resolve) => setTimeout(resolve, 200))
+
+	try {
+		webrtcManager = new WebRTCManager()
+		gstManager = new GstManager()
+		await gstManager.start()
+		hostStatus = "running"
+		logger.info("Server engine successfully restarted")
+	} catch (err) {
+		hostStatus = "error"
+		logger.error(`Failed to start server engine during restart: ${err}`)
+		throw err
+	}
+}
+
+if (typeof process !== "undefined") {
+	const handleExit = () => {
+		stopServer().catch(() => {})
+	}
+	process.once("SIGINT", handleExit)
+	process.once("SIGTERM", handleExit)
 }
