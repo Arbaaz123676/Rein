@@ -11,11 +11,16 @@ vi.mock("node:child_process", () => ({
 	spawn: vi.fn(),
 }))
 
-vi.mock("node:os", () => ({
-	default: {
-		platform: vi.fn(),
-	},
-}))
+vi.mock("node:os", async () => {
+	const actual = await vi.importActual<typeof import("node:os")>("node:os")
+	return {
+		...actual,
+		default: {
+			...actual.default,
+			platform: vi.fn(),
+		},
+	}
+})
 
 describe("Host Clipboard Module (Mocked Process Layer)", () => {
 	beforeEach(() => {
@@ -187,7 +192,7 @@ describe("Host Clipboard Module (Mocked Process Layer)", () => {
 			expect(text).toBe("xsel-clipboard-text")
 		})
 
-		it("returns empty string and does not throw when all linux tools fail", async () => {
+		it("throws an error when all linux tools fail", async () => {
 			vi.mocked(childProcess.execFile).mockImplementation(((
 				_cmd: string,
 				_args: string[],
@@ -197,8 +202,23 @@ describe("Host Clipboard Module (Mocked Process Layer)", () => {
 				cb(new Error("tool not found"), "")
 			}) as unknown as typeof childProcess.execFile)
 
-			const text = await getSystemClipboard()
-			expect(text).toBe("")
+			await expect(getSystemClipboard()).rejects.toThrow()
+		})
+	})
+
+	describe("Unsupported platform", () => {
+		beforeEach(() => {
+			vi.mocked(os.platform).mockReturnValue("freebsd" as NodeJS.Platform)
+		})
+
+		it("throws an error when reading from unsupported platform", async () => {
+			await expect(getSystemClipboard()).rejects.toThrow("Unsupported platform")
+		})
+
+		it("throws an error when writing to unsupported platform", async () => {
+			await expect(setSystemClipboard("test")).rejects.toThrow(
+				"Unsupported platform",
+			)
 		})
 	})
 

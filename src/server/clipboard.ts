@@ -17,12 +17,13 @@ export async function getSystemClipboard(): Promise<string> {
 		if (platform === "linux") {
 			return await readLinuxClipboard()
 		}
+		throw new Error(`Unsupported platform: ${platform}`)
 	} catch (err) {
 		logger.warn(
 			`Failed to read system clipboard on ${platform}: ${String(err)}`,
 		)
+		throw err
 	}
-	return ""
 }
 
 /**
@@ -43,10 +44,12 @@ export async function setSystemClipboard(text: string): Promise<void> {
 			await writeLinuxClipboard(text)
 			return
 		}
+		throw new Error(`Unsupported platform: ${platform}`)
 	} catch (err) {
 		logger.warn(
 			`Failed to write system clipboard on ${platform}: ${String(err)}`,
 		)
+		throw err
 	}
 }
 

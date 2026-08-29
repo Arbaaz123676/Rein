@@ -5,8 +5,8 @@ import winston from "winston"
 import { getOrCreateActiveToken } from "../tokenStore.ts"
 import { GstManager } from "../gstreamer/gstManager.ts"
 import { WebRTCManager } from "./webRTC.ts"
-import { getSystemClipboard, setSystemClipboard } from "./clipboard.ts"
-import { MAX_TEXT_LENGTH } from "./constants.ts"
+import { getSystemClipboard, setSystemClipboard } from "../clipboard.ts"
+import { MAX_TEXT_LENGTH } from "../constants.ts"
 import type { InputConfig } from "../types.ts"
 import { getLanIp, isLoopbackAddress } from "../../utils/net.ts"
 import { requireAuth, parseJsonBody, json } from "./utils.ts"
@@ -269,7 +269,11 @@ export function attachSignalingRoutes(server: any): void {
 								if (current !== before) break
 							}
 
-							json(res, 200, { text: current })
+							const textToSend =
+								current.length > MAX_TEXT_LENGTH
+									? current.slice(0, MAX_TEXT_LENGTH)
+									: current
+							json(res, 200, { text: textToSend })
 						} catch (err) {
 							logger.error(`Error in /api/clipboard/copy: ${String(err)}`)
 							json(res, 500, { error: "Failed to copy clipboard" })
@@ -308,6 +312,16 @@ export function attachSignalingRoutes(server: any): void {
 						json(res, 400, { ok: false, error: String(err) })
 					})
 				return
+			}
+
+			// ------------------------------------------------------------------
+			// Debug  GET /api/debug/*
+			const debugDeps: DebugHandlerDeps = {
+				webrtcManager,
+				getEffectiveHostStatus,
+				lastReportedLatencyMs,
+				sseClients,
+				logBuffer,
 			}
 
 			if (pathname === "/api/debug/sessions" && req.method === "GET") {
