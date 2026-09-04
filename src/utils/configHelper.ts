@@ -1,4 +1,5 @@
 import fs from "node:fs"
+import os from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -63,11 +64,51 @@ export function getServerConfigPath(): string | null {
 }
 
 /**
- * Parses server-config.json. Returns empty object if missing/unreadable.
+ * Returns the writable directory for user-owned runtime config.
+ * Priority: REIN_DATA_DIR env → XDG_CONFIG_HOME/rein → ~/.config/rein
+ * Always writable; created on demand.
  */
+function getWritableConfigDir(): string {
+	if (process.env.REIN_DATA_DIR) return process.env.REIN_DATA_DIR
+
+	const xdgConfig = process.env.XDG_CONFIG_HOME
+	const base = xdgConfig ?? path.join(os.homedir(), ".config")
+	return path.join(base, "rein")
+}
+
+/**
+ * Returns the writable path for server-config.json, seeding it from the
+ * bundled read-only copy if it doesn't exist yet.
+ */
+export function getWritableConfigPath(): string {
+	const dir = getWritableConfigDir()
+	fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
+	const writablePath = path.join(dir, "server-config.json")
+
+	// Seed from bundled defaults on first run
+	if (!fs.existsSync(writablePath)) {
+		const bundledPath = getServerConfigPath()
+		if (bundledPath) {
+			try {
+				fs.copyFileSync(bundledPath, writablePath)
+			} catch {}
+		}
+	}
+
+	return writablePath
+}
+
+function isPackaged(): boolean {
+	return !!(process as unknown as { resourcesPath?: string }).resourcesPath
+}
+
 export function loadServerConfig(): ServerConfig {
 	if (cachedConfig) return cachedConfig
-	const configPath = getServerConfigPath()
+
+	const configPath = isPackaged()
+		? getWritableConfigPath()
+		: (getServerConfigPath() ?? null)
+
 	if (!configPath) {
 		cachedConfig = {}
 		return cachedConfig
@@ -90,11 +131,13 @@ export function loadServerConfig(): ServerConfig {
  * so the next loadServerConfig() call reads the updated file.
  */
 export function saveServerConfig(partial: Partial<ServerConfig>): void {
-	const configPath =
-		getServerConfigPath() ??
-		path.join(process.cwd(), "src", "server-config.json")
+	const writePath = isPackaged()
+		? getWritableConfigPath()
+		: (getServerConfigPath() ??
+			path.join(process.cwd(), "src", "server-config.json"))
+
 	const existing = loadServerConfig()
 	const merged = { ...existing, ...partial }
-	fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), "utf-8")
+	fs.writeFileSync(writePath, JSON.stringify(merged, null, 2), "utf-8")
 	cachedConfig = null
 }
