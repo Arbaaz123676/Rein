@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { MdWarning } from "react-icons/md"
 import { APP_CONFIG } from "../../config"
+import { getAuthHeaders } from "../../utils/net"
+import { t } from "../../utils/i18n"
 
 export type StreamQuality = "performance" | "intermediate" | "quality"
 
@@ -9,28 +11,6 @@ export interface ServerTabProps {
 	setIp: (ip: string) => void
 	authToken: string
 }
-
-const qualityOptions: {
-	value: StreamQuality
-	label: string
-	desc: string
-}[] = [
-	{
-		value: "performance",
-		label: "Performance",
-		desc: "Ultrafast encode · Best for low-end hardware",
-	},
-	{
-		value: "intermediate",
-		label: "Balanced",
-		desc: "Superfast encode · Good quality & latency",
-	},
-	{
-		value: "quality",
-		label: "Quality",
-		desc: "Fast encode · Best visual fidelity",
-	},
-]
 
 export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 	const [frontendPort, setFrontendPort] = useState("")
@@ -48,6 +28,28 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 	const [loadedFramerate, setLoadedFramerate] = useState<number | null>(null)
 	const [loadedPort, setLoadedPort] = useState("")
 
+	const qualityOptions: {
+		value: StreamQuality
+		label: string
+		desc: string
+	}[] = [
+		{
+			value: "performance",
+			label: t("serverTab", "qualityPerformance"),
+			desc: t("serverTab", "qualityPerformanceDesc"),
+		},
+		{
+			value: "intermediate",
+			label: t("serverTab", "qualityBalanced"),
+			desc: t("serverTab", "qualityBalancedDesc"),
+		},
+		{
+			value: "quality",
+			label: t("serverTab", "qualityQuality"),
+			desc: t("serverTab", "qualityQualityDesc"),
+		},
+	]
+
 	const serverConfigChanged =
 		streamQuality !== loadedStreamQuality ||
 		framerate !== loadedFramerate ||
@@ -60,11 +62,12 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 		}
 	}, [])
 
-	// Load server GStreamer config (framerate, streamQuality) from API
+	// Load server config (framerate, streamQuality, frontendPort) from API
 	useEffect(() => {
 		if (typeof window === "undefined") return
 		fetch("/api/config", {
-			headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+			headers: getAuthHeaders(authToken),
+			redirect: "error",
 		})
 			.then((r) => r.json())
 			.then((data) => {
@@ -82,15 +85,26 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 							: null
 					setFramerate(fr)
 					setLoadedFramerate(fr)
+
+					if (data.config.frontendPort) {
+						const portStr = String(data.config.frontendPort)
+						setFrontendPort(portStr)
+						setLoadedPort(portStr)
+					}
 				}
 			})
 			.catch((e) => console.error("Config fetch error:", e))
 	}, [authToken])
 
 	const handleSaveServerConfig = () => {
-		const port = Number.parseInt(frontendPort, 10)
+		const trimmedPort = frontendPort.trim()
+		if (!/^\d+$/.test(trimmedPort)) {
+			alert(t("serverTab", "invalidPortAlert"))
+			return
+		}
+		const port = Number.parseInt(trimmedPort, 10)
 		if (!Number.isFinite(port) || port < 1 || port > 65535) {
-			alert("Please enter a valid port number (1–65535).")
+			alert(t("serverTab", "invalidPortAlert"))
 			return
 		}
 		setServerConfigSaving(true)
@@ -98,8 +112,9 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+				...getAuthHeaders(authToken),
 			},
+			redirect: "error",
 			body: JSON.stringify({
 				frontendPort: port,
 				streamQuality,
@@ -113,7 +128,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					setServerConfigSaved(true)
 					setLoadedStreamQuality(streamQuality)
 					setLoadedFramerate(framerate)
-					setLoadedPort(frontendPort)
+					setLoadedPort(trimmedPort)
 				} else {
 					alert(
 						`Failed to save configuration: ${data.error || "Unknown error"}`,
@@ -146,8 +161,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 						/>
 					</svg>
 					<span className="text-sm font-medium">
-						Server config saved. Please restart Rein for the changes to take
-						effect.
+						{t("serverTab", "restartRequired")}
 					</span>
 				</div>
 			)}
@@ -155,7 +169,9 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			{/* Stream Quality */}
 			<div className="form-control w-full">
 				<div className="label mb-3">
-					<span className="label-text font-medium">Stream Quality</span>
+					<span className="label-text font-medium">
+						{t("serverTab", "streamQuality")}
+					</span>
 				</div>
 				<div className="flex flex-col gap-2">
 					{qualityOptions.map((opt) => (
@@ -190,7 +206,9 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			{/* Frame Rate */}
 			<div className="form-control w-full">
 				<label className="label mb-3" htmlFor="framerate-slider">
-					<span className="label-text font-medium">Limit Frame Rate</span>
+					<span className="label-text font-medium">
+						{t("serverTab", "limitFramerate")}
+					</span>
 				</label>
 
 				<input
@@ -217,14 +235,16 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					<span>30 FPS</span>
 					<span>60 FPS</span>
 					<span>120 FPS</span>
-					<span>No Limit</span>
+					<span>{t("serverTab", "noLimit")}</span>
 				</div>
 			</div>
 
 			{/* Server IP */}
 			<div className="form-control w-full">
 				<label className="label mb-3" htmlFor="server-ip-input">
-					<span className="label-text font-medium">Server IP (for Remote)</span>
+					<span className="label-text font-medium">
+						{t("serverTab", "serverIp")}
+					</span>
 				</label>
 
 				<input
@@ -238,21 +258,24 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 
 				<label className="label" htmlFor="server-ip-input">
 					<span className="label-text-alt opacity-50">
-						This Computer's LAN IP
+						{t("serverTab", "lanIpHelp")}
 					</span>
 				</label>
 			</div>
 			<div className="alert alert-warning text-xs shadow-lg">
 				<MdWarning />
 				<span>
-					Important: Ensure port {frontendPort} is allowed in your computer's
-					firewall!
+					{t("serverTab", "firewallAlert", {
+						port: frontendPort || APP_CONFIG.PORT,
+					})}
 				</span>
 			</div>
 			{/* Port */}
 			<div className="form-control w-full">
 				<label className="label mb-3" htmlFor="port-input">
-					<span className="label-text font-medium">Port</span>
+					<span className="label-text font-medium">
+						{t("serverTab", "port")}
+					</span>
 				</label>
 				<input
 					id="port-input"
@@ -265,10 +288,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			</div>
 			<div className="alert alert-warning text-xs shadow-lg">
 				<MdWarning />
-				<span>
-					Important: Any changes made to the server requires a restart and
-					clicking the save config will restart the server!
-				</span>
+				<span>{t("serverTab", "restartWarningAlert")}</span>
 			</div>
 			{/* Save Config — only visible in Server tab */}
 			<button
@@ -281,10 +301,10 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 				{serverConfigSaving ? (
 					<>
 						<span className="loading loading-spinner loading-sm" />
-						Saving…
+						{t("serverTab", "saving")}
 					</>
 				) : (
-					"Save Config"
+					t("serverTab", "saveConfig")
 				)}
 			</button>
 		</div>

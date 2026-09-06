@@ -43,17 +43,17 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 	const lockHintTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
 	const requestLock = useCallback(
-		(e?: React.MouseEvent | MouseEvent) => {
+		(e?: React.PointerEvent | PointerEvent | React.MouseEvent | MouseEvent) => {
 			if (!enabled) return
 
 			// Strictly restrict pointer lock to physical mouse events
-			if (e) {
-				const nativeEv = e as PointerEvent
-				const pointerType =
-					nativeEv?.pointerType ?? (e as unknown as PointerEvent)?.pointerType
-				if (pointerType && pointerType !== "mouse") {
-					return
-				}
+			if (
+				e &&
+				"pointerType" in e &&
+				e.pointerType &&
+				e.pointerType !== "mouse"
+			) {
+				return
 			}
 
 			const el = containerRef.current
@@ -266,11 +266,8 @@ export const useMouseInput = (send: (msg: unknown) => void, enabled = true) => {
 	}, [isLocked, send])
 
 	const handleClick = useCallback(
-		(e: React.MouseEvent) => {
-			const nativeEv = (e.nativeEvent || e) as PointerEvent
-			const pointerType =
-				nativeEv?.pointerType ?? (e as unknown as PointerEvent)?.pointerType
-			if (pointerType && pointerType !== "mouse") {
+		(e: React.MouseEvent | React.PointerEvent) => {
+			if ("pointerType" in e && e.pointerType && e.pointerType !== "mouse") {
 				return
 			}
 			if (!isLocked) {

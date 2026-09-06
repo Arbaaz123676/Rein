@@ -19,15 +19,6 @@ export class UdpSocketManager {
 
 	constructor(private readonly clients: Map<string, ClientSession>) {
 		this.setup()
-
-		if (typeof process !== "undefined") {
-			const onExit = () => {
-				this.shutdown().catch(() => {})
-			}
-			process.once("exit", onExit)
-			process.once("SIGINT", onExit)
-			process.once("SIGTERM", onExit)
-		}
 	}
 
 	public healthy(): boolean {

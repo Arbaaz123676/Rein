@@ -97,28 +97,32 @@ export const ScreenMirror = ({
 			mouseContainerRef?.current || videoElementRef.current?.parentElement
 		if (!container) return
 
-		if (!document.fullscreenElement) {
+		const doc = document as unknown as {
+			webkitFullscreenElement?: Element
+			webkitExitFullscreen?: () => Promise<void>
+		}
+		const containerExt = container as unknown as {
+			webkitRequestFullscreen?: () => Promise<void>
+		}
+
+		const isFull = !!(document.fullscreenElement || doc.webkitFullscreenElement)
+
+		if (!isFull) {
 			if (container.requestFullscreen) {
 				container.requestFullscreen().catch((err) => {
 					console.warn("[ScreenMirror] Fullscreen request failed:", err)
 				})
-			} else if (
-				(
-					container as unknown as {
-						webkitRequestFullscreen?: () => Promise<void>
-					}
-				).webkitRequestFullscreen
-			) {
-				;(
-					container as unknown as {
-						webkitRequestFullscreen: () => Promise<void>
-					}
-				).webkitRequestFullscreen()
+			} else if (containerExt.webkitRequestFullscreen) {
+				containerExt.webkitRequestFullscreen()
 			}
 		} else {
 			if (document.exitFullscreen) {
 				document.exitFullscreen().catch((err) => {
 					console.warn("[ScreenMirror] Exit fullscreen failed:", err)
+				})
+			} else if (doc.webkitExitFullscreen) {
+				doc.webkitExitFullscreen().catch((err) => {
+					console.warn("[ScreenMirror] WebKit exit fullscreen failed:", err)
 				})
 			}
 		}
@@ -126,7 +130,12 @@ export const ScreenMirror = ({
 
 	useEffect(() => {
 		const handleFullscreenChange = () => {
-			setIsFullscreen(!!document.fullscreenElement)
+			const doc = document as unknown as {
+				webkitFullscreenElement?: Element
+			}
+			setIsFullscreen(
+				!!(document.fullscreenElement || doc.webkitFullscreenElement),
+			)
 		}
 		document.addEventListener("fullscreenchange", handleFullscreenChange)
 		document.addEventListener("webkitfullscreenchange", handleFullscreenChange)
@@ -164,14 +173,21 @@ export const ScreenMirror = ({
 	}
 
 	return (
-		// biome-ignore lint/a11y/noStaticElementInteractions: layout container handles pointer lock clicks
-		// biome-ignore lint/a11y/useKeyWithClickEvents: pointer lock keyboard navigation is handled dynamically
-		<div
+		<section
 			ref={mouseContainerRef}
+			// biome-ignore lint/a11y/noNoninteractiveTabindex: mouse container receives focus for physical keyboard shortcuts
+			tabIndex={0}
+			aria-label={t("screenMirror", "ariaLabel")}
 			onPointerDown={handleInteraction}
 			onTouchStart={handleInteraction}
 			onClick={onMouseClick}
-			className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden select-none touch-none"
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					handleInteraction()
+					onMouseClick?.(e as unknown as React.MouseEvent)
+				}
+			}}
+			className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden select-none touch-none focus:outline-none focus:ring-2 focus:ring-primary"
 		>
 			{/* Hardware Accelerated Video/Audio Renderer */}
 			{/* biome-ignore lint/a11y/useMediaCaption: screen mirror stream does not contain timed text track */}
@@ -199,13 +215,9 @@ export const ScreenMirror = ({
 
 			{/* Mouse Lock Notification Popup */}
 			{isPointerLocked && showLockHint && (
-				<div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-base-100/90 backdrop-blur-md px-4 py-2 rounded-full border border-base-300 shadow-xl text-xs md:text-sm text-base-content pointer-events-none transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+				<div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-base-100/90 backdrop-blur-md px-4 py-2 rounded-full border border-base-300 shadow-xl text-xs md:text-sm text-base-content pointer-events-none transition-all duration-300 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2">
 					<Lock size={14} className="text-primary shrink-0" />
-					<span>{t("screenMirror", "mouseLockedHint")}</span>
-					<kbd className="kbd kbd-xs bg-base-200 border-base-300 font-mono">
-						Esc
-					</kbd>
-					<span>{t("screenMirror", "toUnlock")}</span>
+					<span>{t("screenMirror", "mouseLockedHint", { key: "Esc" })}</span>
 				</div>
 			)}
 
@@ -216,8 +228,16 @@ export const ScreenMirror = ({
 				onPointerDown={(e) => e.stopPropagation()}
 				onTouchStart={(e) => e.stopPropagation()}
 				className="absolute bottom-4 right-4 z-30 flex items-center justify-center w-10 h-10 bg-base-100/80 hover:bg-base-100 active:scale-95 text-base-content backdrop-blur-md border border-base-300 shadow-xl rounded-full transition-all duration-200"
-				aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-				title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+				aria-label={
+					isFullscreen
+						? t("screenMirror", "exitFullscreen")
+						: t("screenMirror", "enterFullscreen")
+				}
+				title={
+					isFullscreen
+						? t("screenMirror", "exitFullscreen")
+						: t("screenMirror", "enterFullscreen")
+				}
 			>
 				{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
 			</button>
@@ -234,6 +254,6 @@ export const ScreenMirror = ({
 							: "pointer",
 				}}
 			/>
-		</div>
+		</section>
 	)
 }

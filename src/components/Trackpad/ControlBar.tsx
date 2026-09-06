@@ -9,6 +9,7 @@ import {
 	Keyboard,
 	X,
 } from "lucide-react"
+import { t } from "@/utils/i18n"
 
 interface ControlBarProps {
 	scrollMode: boolean
@@ -67,6 +68,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 					type="button"
 					className={`${baseButton} ${scrollMode ? "text-primary" : ""}`}
 					onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
+					aria-label={t("controlBar", "scrollMode")}
 				>
 					<MousePointer2 size={20} />
 				</button>
@@ -75,6 +77,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 					type="button"
 					className={baseButton}
 					onPointerDown={(e) => handleInteraction(e, onLeftClick)}
+					aria-label={t("controlBar", "leftClick")}
 				>
 					<Mouse size={18} />
 				</button>
@@ -83,6 +86,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 					type="button"
 					className={baseButton}
 					onPointerDown={(e) => handleInteraction(e, onRightClick)}
+					aria-label={t("controlBar", "rightClick")}
 				>
 					<Mouse size={18} className="rotate-180" />
 				</button>
@@ -91,7 +95,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 					type="button"
 					className={baseButton}
 					onPointerDown={(e) => handleInteraction(e, onCopy)}
-					aria-label="Copy"
+					aria-label={t("controlBar", "copy")}
 				>
 					<Copy size={18} />
 				</button>
@@ -100,7 +104,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 					type="button"
 					className={baseButton}
 					onPointerDown={(e) => handleInteraction(e, onPaste)}
-					aria-label="Paste"
+					aria-label={t("controlBar", "paste")}
 				>
 					<ClipboardPaste size={18} />
 				</button>
@@ -109,6 +113,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 					type="button"
 					className={baseButton}
 					onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
+					aria-label={t("controlBar", "keyboard")}
 				>
 					<Keyboard size={20} />
 				</button>
@@ -122,6 +127,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 							: "bg-base-100 hover:bg-base-300"
 					}`}
 					onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
+					aria-label={t("controlBar", "modifier")}
 				>
 					{modLabel === "Release" ? (
 						<X size={26} strokeWidth={3.5} className="text-red-600" />
@@ -146,7 +152,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				type="button"
 				className={`${gridBtn} ${scrollMode ? "btn-primary" : ""}`}
 				onPointerDown={(e) => handleInteraction(e, onToggleScroll)}
-				aria-label="Toggle scroll"
+				aria-label={t("controlBar", "scrollMode")}
 			>
 				<MousePointer2 size={18} />
 			</button>
@@ -155,7 +161,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				type="button"
 				className={gridBtn}
 				onPointerDown={(e) => handleInteraction(e, onLeftClick)}
-				aria-label="Left click"
+				aria-label={t("controlBar", "leftClick")}
 			>
 				<Mouse size={18} />
 			</button>
@@ -164,7 +170,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				type="button"
 				className={gridBtn}
 				onPointerDown={(e) => handleInteraction(e, onRightClick)}
-				aria-label="Right click"
+				aria-label={t("controlBar", "rightClick")}
 			>
 				<Mouse size={18} className="rotate-180" />
 			</button>
@@ -174,7 +180,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				type="button"
 				className={gridBtn}
 				onPointerDown={(e) => handleInteraction(e, onCopy)}
-				aria-label="Copy"
+				aria-label={t("controlBar", "copy")}
 			>
 				<Copy size={18} />
 			</button>
@@ -183,7 +189,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				type="button"
 				className={gridBtn}
 				onPointerDown={(e) => handleInteraction(e, onPaste)}
-				aria-label="Paste"
+				aria-label={t("controlBar", "paste")}
 			>
 				<ClipboardPaste size={18} />
 			</button>
@@ -192,7 +198,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 				type="button"
 				className={gridBtn}
 				onPointerDown={(e) => handleInteraction(e, onKeyboardToggle)}
-				aria-label="Keyboard"
+				aria-label={t("controlBar", "keyboard")}
 			>
 				<Keyboard size={18} />
 			</button>
@@ -204,7 +210,7 @@ export const ControlBar: React.FC<ControlBarProps> = ({
 					isHold ? "bg-neutral-900 hover:bg-neutral-800 border-0" : ""
 				}`}
 				onPointerDown={(e) => handleInteraction(e, onModifierToggle)}
-				aria-label="Modifier"
+				aria-label={t("controlBar", "modifier")}
 			>
 				{modLabel === "Release" ? (
 					<X size={20} strokeWidth={3.5} className="text-red-600" />

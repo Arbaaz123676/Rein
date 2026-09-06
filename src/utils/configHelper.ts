@@ -98,21 +98,11 @@ export function getWritableConfigPath(): string {
 	return writablePath
 }
 
-function isPackaged(): boolean {
-	return !!(process as unknown as { resourcesPath?: string }).resourcesPath
-}
-
 export function loadServerConfig(): ServerConfig {
 	if (cachedConfig) return cachedConfig
 
-	const configPath = isPackaged()
-		? getWritableConfigPath()
-		: (getServerConfigPath() ?? null)
+	const configPath = getWritableConfigPath()
 
-	if (!configPath) {
-		cachedConfig = {}
-		return cachedConfig
-	}
 	try {
 		const raw = fs.readFileSync(configPath, "utf-8")
 		const parsed: unknown = JSON.parse(raw)
@@ -127,14 +117,11 @@ export function loadServerConfig(): ServerConfig {
 }
 
 /**
- * Merges partial fields into server-config.json and clears the in-memory cache
+ * Merges partial fields into user-writable server-config.json and clears the in-memory cache
  * so the next loadServerConfig() call reads the updated file.
  */
 export function saveServerConfig(partial: Partial<ServerConfig>): void {
-	const writePath = isPackaged()
-		? getWritableConfigPath()
-		: (getServerConfigPath() ??
-			path.join(process.cwd(), "src", "server-config.json"))
+	const writePath = getWritableConfigPath()
 
 	const existing = loadServerConfig()
 	const merged = { ...existing, ...partial }

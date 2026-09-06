@@ -171,8 +171,14 @@ function cleanupAllInjectors(): void {
 
 if (typeof process !== "undefined") {
 	process.once("exit", cleanupAllInjectors)
-	process.once("SIGINT", cleanupAllInjectors)
-	process.once("SIGTERM", cleanupAllInjectors)
+	process.once("SIGINT", () => {
+		cleanupAllInjectors()
+		process.kill(process.pid, "SIGINT")
+	})
+	process.once("SIGTERM", () => {
+		cleanupAllInjectors()
+		process.kill(process.pid, "SIGTERM")
+	})
 }
 
 export class LinuxInputInjector {

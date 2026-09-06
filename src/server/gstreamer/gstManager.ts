@@ -47,9 +47,11 @@ export class GstManager {
 		return ["pulsesrc"]
 	}
 
-	private getX264Params(
-		quality: "performance" | "intermediate" | "quality",
-	): string[] {
+	private getX264Params(quality: string): string[] {
+		const validQuality: "performance" | "intermediate" | "quality" =
+			quality === "intermediate" || quality === "quality"
+				? quality
+				: "performance"
 		const presets = {
 			performance: [
 				"tune=zerolatency",
@@ -73,7 +75,7 @@ export class GstManager {
 				"byte-stream=false",
 			],
 		} as const
-		return [...presets[quality]]
+		return [...presets[validQuality]]
 	}
 
 	private buildPipelineArgs(sourceBlocks: string[]): string[] {

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { APP_CONFIG } from "../../config"
+import { getAuthHeaders } from "../../utils/net"
+import { t } from "../../utils/i18n"
 import {
 	getLocalStorageItem,
 	setLocalStorageItem,
@@ -41,8 +43,9 @@ export function ClientTab({ authToken }: ClientTabProps) {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+					...getAuthHeaders(authToken),
 				},
+				redirect: "error",
 				body: JSON.stringify({
 					sensitivity: sensitivityVal,
 					invertScroll: invertedScrollVal,
@@ -75,7 +78,9 @@ export function ClientTab({ authToken }: ClientTabProps) {
 		<div className="space-y-8">
 			<div className="form-control w-full">
 				<label className="label mb-3" htmlFor="sensitivity-slider">
-					<span className="label-text">Mouse Sensitivity</span>
+					<span className="label-text">
+						{t("clientTab", "mouseSensitivity")}
+					</span>
 					<span className="label-text-alt font-mono">
 						{sensitivity.toFixed(1)}x
 					</span>
@@ -97,15 +102,17 @@ export function ClientTab({ authToken }: ClientTabProps) {
 				/>
 
 				<div className="mt-2 flex w-full justify-between px-2 text-xs opacity-50">
-					<span>Slow</span>
-					<span>Default</span>
-					<span>Fast</span>
+					<span>{t("clientTab", "slow")}</span>
+					<span>{t("clientTab", "default")}</span>
+					<span>{t("clientTab", "fast")}</span>
 				</div>
 			</div>
 
 			<div className="form-control w-full">
 				<label className="label cursor-pointer" htmlFor="invert-scroll-toggle">
-					<span className="label-text font-medium">Invert Scroll</span>
+					<span className="label-text font-medium">
+						{t("clientTab", "invertScroll")}
+					</span>
 					<input
 						id="invert-scroll-toggle"
 						type="checkbox"
@@ -122,15 +129,15 @@ export function ClientTab({ authToken }: ClientTabProps) {
 				<label className="label" htmlFor="invert-scroll-toggle">
 					<span className="label-text-alt opacity-50">
 						{invertScroll
-							? "Traditional scrolling enabled"
-							: "Natural scrolling"}
+							? t("clientTab", "traditionalScrolling")
+							: t("clientTab", "naturalScrolling")}
 					</span>
 				</label>
 			</div>
 
 			<div className="form-control w-full">
 				<label className="label mb-3" htmlFor="theme-picker">
-					<span className="label-text">Theme</span>
+					<span className="label-text">{t("clientTab", "theme")}</span>
 				</label>
 				<ThemePicker value={theme ?? "dracula"} onChange={setTheme} />
 			</div>

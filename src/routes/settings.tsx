@@ -121,7 +121,9 @@ function SettingsPage() {
 	return (
 		<div className="h-full overflow-y-auto w-full">
 			<div className="p-6 pb-safe max-w-5xl mx-auto min-h-full">
-				<h1 className="text-3xl font-bold pt-4 mb-6">Settings</h1>
+				<h1 className="text-3xl font-bold pt-4 mb-6">
+					{t("settings", "title")}
+				</h1>
 
 				<div className="flex flex-col md:flex-row gap-8 items-start">
 					{/* Left Column: Settings Form */}
@@ -144,7 +146,7 @@ function SettingsPage() {
 								}`}
 								onClick={() => setActiveTab("client")}
 							>
-								Client Settings
+								{t("settings", "clientTab")}
 							</button>
 
 							<button
@@ -160,7 +162,7 @@ function SettingsPage() {
 								}`}
 								onClick={() => setActiveTab("server")}
 							>
-								Server Settings
+								{t("settings", "serverTab")}
 							</button>
 						</div>
 
@@ -189,8 +191,8 @@ function SettingsPage() {
 					<div className="w-full md:w-96 flex-shrink-0">
 						<div className="card bg-base-200 shadow-xl sticky top-6">
 							<div className="card-body items-center text-center">
-								<h2 className="card-title">Connect Mobile</h2>
-								<p className="text-sm opacity-70">Scan to open remote</p>
+								<h2 className="card-title">{t("settings", "connectMobile")}</h2>
+								<p className="text-sm opacity-70">{t("settings", "scanQr")}</p>
 
 								{qrData && (
 									<div className="bg-white p-4 rounded-xl shadow-inner my-4">

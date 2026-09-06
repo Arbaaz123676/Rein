@@ -10,17 +10,39 @@ import { printWelcome } from "./src/utils/welcome.ts"
 import fs from "node:fs"
 import path from "node:path"
 
-function getViteServerConfig() {
+interface ViteServerConfig {
+	host: string
+	frontendPort: number
+}
+
+function getViteServerConfig(): ViteServerConfig {
+	const defaultConfig: ViteServerConfig = {
+		host: "0.0.0.0",
+		frontendPort: 3000,
+	}
 	try {
 		const configPath = path.resolve(
 			import.meta.dirname,
 			"src/server-config.json",
 		)
 		if (fs.existsSync(configPath)) {
-			return JSON.parse(fs.readFileSync(configPath, "utf-8"))
+			const raw: unknown = JSON.parse(fs.readFileSync(configPath, "utf-8"))
+			if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+				const obj = raw as Record<string, unknown>
+				const host =
+					typeof obj.host === "string" ? obj.host : defaultConfig.host
+				const frontendPort =
+					typeof obj.frontendPort === "number" &&
+					Number.isInteger(obj.frontendPort) &&
+					obj.frontendPort >= 1 &&
+					obj.frontendPort <= 65535
+						? obj.frontendPort
+						: defaultConfig.frontendPort
+				return { host, frontendPort }
+			}
 		}
 	} catch {}
-	return { host: "0.0.0.0", frontendPort: 3000 }
+	return defaultConfig
 }
 const serverConfig = getViteServerConfig()
 

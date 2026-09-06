@@ -201,7 +201,8 @@ export const ExtraKeys: React.FC<ExtraKeysProps> = ({
 			<div className="flex flex-col gap-4 w-full">
 				{keyGroupsVertical.map((group, _i) => (
 					<div
-						key={Math.floor(Math.random() * 1000)}
+						// biome-ignore lint/suspicious/noArrayIndexKey: vertical key groups are stateless layout wrappers
+						key={_i}
 						className="grid grid-cols-3 gap-1.5 w-full"
 					>
 						{group.map((k) => renderKey(k))}

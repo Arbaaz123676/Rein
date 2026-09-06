@@ -109,22 +109,24 @@ function LatencyBadge() {
 		</div>
 	)
 }
-const NAV_ITEMS = [
-	{
-		to: "/trackpad",
-		label: "Trackpad",
-		icon: MousePointer2,
-		id: "nav-link-trackpad",
-	},
-	{
-		to: "/settings",
-		label: "Settings",
-		icon: SlidersHorizontal,
-		id: "nav-link-settings",
-	},
-] as const
+import { t } from "../utils/i18n"
 
 function Navbar() {
+	const navItems = [
+		{
+			to: "/trackpad",
+			label: t("nav", "trackpad"),
+			icon: MousePointer2,
+			id: "nav-link-trackpad",
+		},
+		{
+			to: "/settings",
+			label: t("nav", "settings"),
+			icon: SlidersHorizontal,
+			id: "nav-link-settings",
+		},
+	]
+
 	return (
 		<div className="navbar bg-base-100 border-b border-base-300 min-h-12 h-12 z-50 px-4">
 			<div className="flex-1">
@@ -140,7 +142,7 @@ function Navbar() {
 			</div>
 			<nav className="flex items-center gap-1 bg-base-200/60 p-1 rounded-xl border border-base-300/50">
 				<LatencyBadge />
-				{NAV_ITEMS.map((item) => (
+				{navItems.map((item) => (
 					<Link
 						key={item.to}
 						to={item.to}
@@ -171,7 +173,8 @@ function SendFileButton() {
 			id="navbar-send-files-btn"
 			className="btn btn-ghost btn-sm gap-1.5 relative"
 			onClick={() => setOverlayOpen(true)}
-			title="Send Files"
+			title={t("nav", "sendFile")}
+			aria-label={t("nav", "sendFile")}
 		>
 			<FolderOpen size={18} />
 		</button>
