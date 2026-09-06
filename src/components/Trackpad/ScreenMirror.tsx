@@ -6,6 +6,16 @@ import { Lock, Maximize, Minimize } from "lucide-react"
 
 import { t } from "../../utils/i18n"
 
+declare global {
+	interface Document {
+		webkitFullscreenElement?: Element
+		webkitExitFullscreen?: () => Promise<void>
+	}
+	interface HTMLElement {
+		webkitRequestFullscreen?: () => Promise<void>
+	}
+}
+
 interface ScreenMirrorProps {
 	scrollMode: boolean
 	isTracking: boolean
@@ -97,31 +107,25 @@ export const ScreenMirror = ({
 			mouseContainerRef?.current || videoElementRef.current?.parentElement
 		if (!container) return
 
-		const doc = document as unknown as {
-			webkitFullscreenElement?: Element
-			webkitExitFullscreen?: () => Promise<void>
-		}
-		const containerExt = container as unknown as {
-			webkitRequestFullscreen?: () => Promise<void>
-		}
-
-		const isFull = !!(document.fullscreenElement || doc.webkitFullscreenElement)
+		const isFull = !!(
+			document.fullscreenElement || document.webkitFullscreenElement
+		)
 
 		if (!isFull) {
 			if (container.requestFullscreen) {
 				container.requestFullscreen().catch((err) => {
 					console.warn("[ScreenMirror] Fullscreen request failed:", err)
 				})
-			} else if (containerExt.webkitRequestFullscreen) {
-				containerExt.webkitRequestFullscreen()
+			} else if (container.webkitRequestFullscreen) {
+				container.webkitRequestFullscreen()
 			}
 		} else {
 			if (document.exitFullscreen) {
 				document.exitFullscreen().catch((err) => {
 					console.warn("[ScreenMirror] Exit fullscreen failed:", err)
 				})
-			} else if (doc.webkitExitFullscreen) {
-				doc.webkitExitFullscreen().catch((err) => {
+			} else if (document.webkitExitFullscreen) {
+				document.webkitExitFullscreen().catch((err) => {
 					console.warn("[ScreenMirror] WebKit exit fullscreen failed:", err)
 				})
 			}
@@ -130,11 +134,8 @@ export const ScreenMirror = ({
 
 	useEffect(() => {
 		const handleFullscreenChange = () => {
-			const doc = document as unknown as {
-				webkitFullscreenElement?: Element
-			}
 			setIsFullscreen(
-				!!(document.fullscreenElement || doc.webkitFullscreenElement),
+				!!(document.fullscreenElement || document.webkitFullscreenElement),
 			)
 		}
 		document.addEventListener("fullscreenchange", handleFullscreenChange)
@@ -174,6 +175,7 @@ export const ScreenMirror = ({
 
 	return (
 		<section
+			role="application"
 			ref={mouseContainerRef}
 			// biome-ignore lint/a11y/noNoninteractiveTabindex: mouse container receives focus for physical keyboard shortcuts
 			tabIndex={0}
@@ -183,8 +185,8 @@ export const ScreenMirror = ({
 			onClick={onMouseClick}
 			onKeyDown={(e) => {
 				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault()
 					handleInteraction()
-					onMouseClick?.(e as unknown as React.MouseEvent)
 				}
 			}}
 			className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden select-none touch-none focus:outline-none focus:ring-2 focus:ring-primary"

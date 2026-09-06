@@ -98,14 +98,19 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 
 	const handleSaveServerConfig = () => {
 		const trimmedPort = frontendPort.trim()
-		if (!/^\d+$/.test(trimmedPort)) {
-			alert(t("serverTab", "invalidPortAlert"))
-			return
-		}
-		const port = Number.parseInt(trimmedPort, 10)
-		if (!Number.isFinite(port) || port < 1 || port > 65535) {
-			alert(t("serverTab", "invalidPortAlert"))
-			return
+		// Treat empty port as unchanged — omit frontendPort from the request
+		let portPayload: { frontendPort?: number } = {}
+		if (trimmedPort !== "") {
+			if (!/^\d+$/.test(trimmedPort)) {
+				alert(t("serverTab", "invalidPortAlert"))
+				return
+			}
+			const port = Number.parseInt(trimmedPort, 10)
+			if (!Number.isFinite(port) || port < 1 || port > 65535) {
+				alert(t("serverTab", "invalidPortAlert"))
+				return
+			}
+			portPayload = { frontendPort: port }
 		}
 		setServerConfigSaving(true)
 		fetch("/api/config", {
@@ -116,7 +121,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 			},
 			redirect: "error",
 			body: JSON.stringify({
-				frontendPort: port,
+				...portPayload,
 				streamQuality,
 				framerate,
 			}),
@@ -128,7 +133,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					setServerConfigSaved(true)
 					setLoadedStreamQuality(streamQuality)
 					setLoadedFramerate(framerate)
-					setLoadedPort(trimmedPort)
+					if (trimmedPort !== "") setLoadedPort(trimmedPort)
 				} else {
 					alert(
 						`Failed to save configuration: ${data.error || "Unknown error"}`,

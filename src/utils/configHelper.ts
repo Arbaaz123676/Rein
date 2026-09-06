@@ -122,9 +122,14 @@ export function loadServerConfig(): ServerConfig {
  */
 export function saveServerConfig(partial: Partial<ServerConfig>): void {
 	const writePath = getWritableConfigPath()
+	const tmpPath = `${writePath}.tmp`
 
 	const existing = loadServerConfig()
 	const merged = { ...existing, ...partial }
-	fs.writeFileSync(writePath, JSON.stringify(merged, null, 2), "utf-8")
+	fs.writeFileSync(tmpPath, JSON.stringify(merged, null, 2), {
+		encoding: "utf-8",
+		mode: 0o600,
+	})
+	fs.renameSync(tmpPath, writePath)
 	cachedConfig = null
 }

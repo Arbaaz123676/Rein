@@ -38,6 +38,7 @@ let webrtcManager: WebRTCManager | null = null
 let hostStatus: "stopped" | "starting" | "running" | "error" = "stopped"
 const lastReportedLatencyMs: { current: number | null } = { current: null }
 let signalingAttached = false
+let lifecyclePromise: Promise<void> = Promise.resolve()
 
 // ---------------------------------------------------------------------------
 // SSE log transport
@@ -152,11 +153,11 @@ export function attachSignalingRoutes(server: any): void {
 					json(res, 200, { status: getEffectiveHostStatus() })
 					return
 				}
-				hostStatus = "starting"
-				if (!gstManager) gstManager = new GstManager()
-				gstManager
-					.start()
-					.then(() => {
+				lifecyclePromise = lifecyclePromise
+					.then(async () => {
+						hostStatus = "starting"
+						if (!gstManager) gstManager = new GstManager()
+						await gstManager.start()
 						hostStatus = "running"
 					})
 					.catch((err) => {
@@ -169,20 +170,21 @@ export function attachSignalingRoutes(server: any): void {
 
 			if (pathname === "/api/host/stop" && req.method === "POST") {
 				if (!requireAuth(req, res)) return
-				hostStatus = "stopped"
-				if (gstManager) {
-					gstManager
-						.stop()
-						.then(() => {
-							json(res, 200, { status: hostStatus })
-						})
-						.catch((err) => {
-							logger.error(`Error stopping GStreamer: ${err}`)
-							json(res, 500, { error: "Failed to stop host engine" })
-						})
-				} else {
-					json(res, 200, { status: hostStatus })
-				}
+				lifecyclePromise = lifecyclePromise
+					.then(async () => {
+						hostStatus = "stopped"
+						if (gstManager) {
+							await gstManager.stop()
+							gstManager = null
+						}
+					})
+					.then(() => {
+						json(res, 200, { status: hostStatus })
+					})
+					.catch((err) => {
+						logger.error(`Error stopping GStreamer: ${err}`)
+						json(res, 500, { error: "Failed to stop host engine" })
+					})
 				return
 			}
 
@@ -294,25 +296,19 @@ export function attachSignalingRoutes(server: any): void {
 								gstFields.streamQuality = q
 							}
 						}
-						if (
-							"frontendPort" in config &&
-							typeof frontendPort === "number" &&
-							frontendPort >= 1 &&
-							frontendPort <= 65535
-						) {
-							gstFields.frontendPort = frontendPort
-						}
+						// frontendPort cannot be rebound at runtime — Vite/the HTTP listener
+						// was already bound at process startup. Persisting a new value here
+						// would create a mismatch between the saved config and the live port.
+						// A full process restart (or Vite restart) is required for the port
+						// to take effect, so frontendPort is intentionally excluded from the
+						// set of runtime-configurable fields.
 						const currentCfg = loadServerConfig()
 						const hasGstChange =
 							("framerate" in config &&
 								(framerate ?? null) !== (currentCfg.framerate ?? null)) ||
 							("streamQuality" in config &&
 								streamQuality !== undefined &&
-								streamQuality !==
-									(currentCfg.streamQuality ?? "performance")) ||
-							("frontendPort" in config &&
-								frontendPort !== undefined &&
-								frontendPort !== currentCfg.frontendPort)
+								streamQuality !== (currentCfg.streamQuality ?? "performance"))
 
 						if (Object.keys(gstFields).length > 0) {
 							saveServerConfig(gstFields)
@@ -432,14 +428,8 @@ export async function stopServer() {
 	if (gstManager) await gstManager.stop()
 }
 
-let activeRestartPromise: Promise<void> | null = null
-
 export async function restartServer(): Promise<void> {
-	if (activeRestartPromise) {
-		return activeRestartPromise
-	}
-
-	activeRestartPromise = (async () => {
+	lifecyclePromise = lifecyclePromise.then(async () => {
 		logger.info("Executing full server engine restart...")
 		hostStatus = "starting"
 
@@ -475,11 +465,8 @@ export async function restartServer(): Promise<void> {
 			logger.error(`Failed to start server engine during restart: ${err}`)
 			throw err
 		}
-	})().finally(() => {
-		activeRestartPromise = null
 	})
-
-	return activeRestartPromise
+	return lifecyclePromise
 }
 
 if (typeof process !== "undefined") {

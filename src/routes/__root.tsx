@@ -147,13 +147,14 @@ function Navbar() {
 						key={item.to}
 						to={item.to}
 						id={item.id}
+						aria-label={item.label}
 						className="btn btn-ghost btn-xs sm:btn-sm gap-1.5 font-medium rounded-lg text-base-content/70 hover:text-base-content hover:bg-base-200/80 transition-all duration-200"
 						activeProps={{
 							className:
 								"btn-active bg-base-100 text-primary shadow-xs border border-base-300/80 font-semibold",
 						}}
 					>
-						<item.icon className="w-4 h-4 shrink-0" />
+						<item.icon className="w-4 h-4 shrink-0" aria-hidden="true" />
 						<span className="hidden md:inline text-xs sm:text-sm">
 							{item.label}
 						</span>

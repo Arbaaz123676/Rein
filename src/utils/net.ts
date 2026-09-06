@@ -42,13 +42,5 @@ export function isLoopbackAddress(addr?: string | null): boolean {
 
 export function getAuthHeaders(authToken?: string): Record<string, string> {
 	if (!authToken) return {}
-	if (typeof window !== "undefined") {
-		const host = window.location.hostname
-		const isSecure =
-			window.location.protocol === "https:" ||
-			isLoopbackAddress(host) ||
-			host === "localhost"
-		if (!isSecure) return {}
-	}
 	return { Authorization: `Bearer ${authToken}` }
 }
