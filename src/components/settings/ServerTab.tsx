@@ -133,6 +133,7 @@ export function ServerTab({ ip, setIp, authToken }: ServerTabProps) {
 					setServerConfigSaved(true)
 					setLoadedStreamQuality(streamQuality)
 					setLoadedFramerate(framerate)
+					setFrontendPort(trimmedPort)
 					if (trimmedPort !== "") setLoadedPort(trimmedPort)
 				} else {
 					alert(

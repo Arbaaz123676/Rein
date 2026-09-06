@@ -67,11 +67,27 @@ export class UdpSocketManager {
 		}
 	}
 
+	private static readonly RCVBUF_VIDEO = 4 * 1024 * 1024
+	private static readonly RCVBUF_AUDIO = 512 * 1024
+
 	private createRtpSocket(
 		port: number,
 		trackKind: "video" | "audio",
 	): dgram.Socket {
 		const socket = dgram.createSocket({ type: "udp4", reuseAddr: true })
+		socket.once("listening", () => {
+			const bufSize =
+				trackKind === "video"
+					? UdpSocketManager.RCVBUF_VIDEO
+					: UdpSocketManager.RCVBUF_AUDIO
+			try {
+				socket.setRecvBufferSize(bufSize)
+			} catch (e) {
+				logger.warn(
+					`Could not set UDP recv buffer to ${bufSize} for ${trackKind}: ${String(e)}`,
+				)
+			}
+		})
 
 		socket.on("error", (err) => {
 			if (this.isShutdown) return

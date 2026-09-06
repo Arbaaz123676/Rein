@@ -114,9 +114,10 @@ export function attachSignalingRoutes(server: any): void {
 		if (!gstManager) {
 			gstManager = new GstManager()
 			hostStatus = "starting"
-			gstManager
-				.start()
-				.then(() => {
+			lifecyclePromise = lifecyclePromise
+				.then(async () => {
+					if (!gstManager) return
+					await gstManager.start()
 					hostStatus = "running"
 					logger.info("GStreamer capture engine started")
 				})
@@ -429,7 +430,7 @@ export async function stopServer() {
 }
 
 export async function restartServer(): Promise<void> {
-	lifecyclePromise = lifecyclePromise.then(async () => {
+	const restart = lifecyclePromise.then(async () => {
 		logger.info("Executing full server engine restart...")
 		hostStatus = "starting"
 
@@ -466,7 +467,8 @@ export async function restartServer(): Promise<void> {
 			throw err
 		}
 	})
-	return lifecyclePromise
+	lifecyclePromise = restart.catch(() => undefined)
+	return restart
 }
 
 if (typeof process !== "undefined") {

@@ -66,6 +66,8 @@ export class GstManager {
 				"key-int-max=30",
 				"bitrate=4000",
 				"byte-stream=false",
+				"cabac=false",
+				"vbv-buf-capacity=600",
 			],
 			quality: [
 				"tune=zerolatency",
@@ -73,6 +75,8 @@ export class GstManager {
 				"key-int-max=30",
 				"bitrate=8000",
 				"byte-stream=false",
+				"cabac=false",
+				"vbv-buf-capacity=500",
 			],
 		} as const
 		return [...presets[validQuality]]
